@@ -1,0 +1,474 @@
+<title>Prosa</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: janela de chat em dois painéis (contatos | conversa); no celular um painel por vez. */
+:root {
+  --bg: #dfe7e4;
+  --panel: #ffffff;
+  --panel2: #f3f6f5;
+  --fg: #12231f;
+  --muted: #5b706a;
+  --line: #dde5e2;
+  --accent: #0e8a72;
+  --accent-fg: #ffffff;
+  --out: #d3f2e2;
+  --in: #ffffff;
+  --wall: #eaf0ed;
+  --danger: #b3362f;
+  --font: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #07100e;
+    --panel: #101c19;
+    --panel2: #16251f;
+    --fg: #e5efec;
+    --muted: #87a09a;
+    --line: #1f332d;
+    --accent: #2bbf9f;
+    --accent-fg: #04201a;
+    --out: #0f5744;
+    --in: #1a2c27;
+    --wall: #0c1714;
+    --danger: #ef7d75;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #07100e;
+  --panel: #101c19;
+  --panel2: #16251f;
+  --fg: #e5efec;
+  --muted: #87a09a;
+  --line: #1f332d;
+  --accent: #2bbf9f;
+  --accent-fg: #04201a;
+  --out: #0f5744;
+  --in: #1a2c27;
+  --wall: #0c1714;
+  --danger: #ef7d75;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 15px;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.shell {
+  height: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.side { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--line); position: relative; }
+.main { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--wall); }
+
+.bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--panel2); border-bottom: 1px solid var(--line); min-height: 58px; }
+.bar .grow { flex: 1; min-width: 0; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; flex: none; background: var(--line); object-fit: cover; }
+.name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iconbtn { width: 38px; height: 38px; border-radius: 50%; border: 0; background: transparent; display: grid; place-items: center; flex: none; }
+.iconbtn:hover { background: var(--line); }
+.iconbtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.fab { background: var(--accent); color: var(--accent-fg); }
+.fab:hover { background: var(--accent); filter: brightness(1.08); }
+
+.searchwrap { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.search { width: 100%; border: 0; border-radius: 10px; padding: 9px 12px; background: var(--panel2); }
+.search::placeholder { color: var(--muted); }
+
+.list { flex: 1; overflow-y: auto; min-height: 0; }
+.item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; border: 0; background: transparent; text-align: left; border-bottom: 1px solid var(--line); }
+.item:hover { background: var(--panel2); }
+.item.on { background: var(--panel2); box-shadow: inset 3px 0 0 var(--accent); }
+.item .mid { flex: 1; min-width: 0; }
+.item .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.item .when { color: var(--muted); font-size: 12px; flex: none; font-variant-numeric: tabular-nums; }
+.item.unread .when { color: var(--accent); font-weight: 600; }
+.item.unread .sub { color: var(--fg); font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; }
+
+.empty { padding: 28px 22px; color: var(--muted); line-height: 1.5; }
+.empty strong { color: var(--fg); display: block; font-size: 16px; margin-bottom: 4px; }
+
+.sheet { position: absolute; inset: 0; background: var(--panel); display: flex; flex-direction: column; z-index: 5; }
+.sheet h2 { margin: 0; font-size: 16px; font-weight: 600; }
+
+.banner { padding: 8px 14px; font-size: 13px; background: var(--panel2); color: var(--muted); border-bottom: 1px solid var(--line); }
+.banner.err { color: var(--danger); }
+
+.msgs { flex: 1; overflow-y: auto; min-height: 0; padding: 14px clamp(12px, 5%, 56px); display: flex; flex-direction: column; gap: 3px; }
+.sep { align-self: center; margin: 10px 0 6px; padding: 3px 12px; border-radius: 999px; background: var(--panel); color: var(--muted); font-size: 12px; border: 1px solid var(--line); }
+.row { display: flex; }
+.row.out { justify-content: flex-end; }
+.bubble { max-width: min(78%, 560px); padding: 6px 10px 5px; border-radius: 10px; background: var(--in); position: relative; box-shadow: 0 1px 0 var(--line); }
+.row.out .bubble { background: var(--out); }
+.bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+.meta { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 2px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.del { border: 0; background: transparent; color: var(--muted); font-size: 11px; padding: 0; opacity: 0; text-decoration: underline; }
+.bubble:hover .del, .del:focus-visible { opacity: 1; }
+@media (hover: none) { .del { opacity: .7; } }
+
+.compose { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; background: var(--panel2); border-top: 1px solid var(--line); }
+.compose textarea { flex: 1; min-width: 0; resize: none; border: 0; border-radius: 12px; padding: 10px 14px; background: var(--panel); max-height: 140px; line-height: 1.35; }
+.send { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; flex: none; }
+.send:disabled { opacity: .45; cursor: default; }
+.send svg { width: 20px; height: 20px; fill: currentColor; }
+
+.welcome { margin: auto; text-align: center; padding: 24px; max-width: 360px; color: var(--muted); line-height: 1.5; }
+.welcome h1 { color: var(--fg); font-size: 22px; margin: 0 0 6px; }
+.textbtn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+.textbtn.danger { color: var(--danger); }
+.textbtn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+.back { display: none; }
+.hide { display: none !important; }
+
+@media (max-width: 720px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .shell .main { display: none; }
+  .shell.in-chat .side { display: none; }
+  .shell.in-chat .main { display: flex; }
+  .back { display: grid; }
+  .shell { border-radius: 12px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .item, .iconbtn, .textbtn { transition: background .15s; }
+}
+</style>
+
+<div class="shell" id="shell">
+  <aside class="side" id="side">
+    <div class="bar">
+      <img class="avatar" id="meAvatar" alt="">
+      <div class="grow"><div class="name" id="meName">Você</div><div class="sub">Prosa</div></div>
+      <button class="iconbtn fab" id="newBtn" aria-label="Nova conversa" title="Nova conversa">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="banner hide" id="banner"></div>
+    <div class="searchwrap"><input class="search" id="filter" type="search" placeholder="Buscar nas conversas" autocomplete="off"></div>
+    <div class="list" id="list"></div>
+
+    <div class="sheet hide" id="sheet">
+      <div class="bar">
+        <button class="iconbtn" id="sheetClose" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <h2>Nova conversa</h2>
+      </div>
+      <div class="searchwrap"><input class="search" id="people" type="search" placeholder="Buscar pessoa pelo nome" autocomplete="off"></div>
+      <div class="list" id="results"></div>
+    </div>
+  </aside>
+
+  <section class="main" id="main">
+    <div class="welcome" id="welcome">
+      <h1>Prosa</h1>
+      <p>Escolha uma conversa ao lado ou toque em + para adicionar alguém. A outra pessoa precisa abrir esta mesma página para aparecer na busca.</p>
+    </div>
+    <div class="hide" id="chat" style="display:none;flex-direction:column;flex:1;min-height:0">
+      <div class="bar">
+        <button class="iconbtn back" id="backBtn" aria-label="Voltar"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <img class="avatar" id="peerAvatar" alt="">
+        <div class="grow"><div class="name" id="peerName"></div><div class="sub" id="peerSub"></div></div>
+        <button class="textbtn primary hide" id="addBtn">Adicionar</button>
+        <button class="textbtn danger hide" id="rmBtn">Remover</button>
+      </div>
+      <div class="msgs" id="msgs" aria-live="polite"></div>
+      <form class="compose" id="form">
+        <textarea id="text" rows="1" placeholder="Escreva uma mensagem" aria-label="Mensagem"></textarea>
+        <button class="send" id="sendBtn" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24"><path d="M3 20.5v-6.8l11-1.7-11-1.7V3.5L22 12 3 20.5z"/></svg></button>
+      </form>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var db = null, user = null, me = null, canWrite = true;
+  var contacts = new Map();      // id do contato -> true
+  var chats = new Map();         // id da conversa -> dados
+  var P = {};                    // perfis resolvidos
+  var active = null;             // id da pessoa com quem estou falando
+  var unsubMsgs = null, msgs = [], firstLoad = true;
+  var seq = 0, queue = Promise.resolve(), armedRemove = false;
+
+  function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || "{}"); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return {}; } }
+  function readAt(cid) { return (store("prosa-read") || {})[cid] || 0; }
+  function markRead(cid) { var r = store("prosa-read") || {}; r[cid] = Date.now(); store("prosa-read", r); }
+
+  function chatId(peer) { return [me, peer].sort().join("__"); }
+  function peerOf(c) { return (c.members || []).filter(function (m) { return m !== me; })[0]; }
+  function nameOf(id) { return (P[id] && P[id].name) || "Pessoa"; }
+  function avatarOf(id) { return (P[id] && P[id].avatarUrl) || ""; }
+
+  function hhmm(t) { return new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
+  function dayLabel(t) {
+    var d = new Date(t), n = new Date();
+    var a = new Date(d.getFullYear(), d.getMonth(), d.getDate()), b = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    var diff = Math.round((b - a) / 86400000);
+    if (diff === 0) return "Hoje";
+    if (diff === 1) return "Ontem";
+    return d.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: d.getFullYear() === n.getFullYear() ? undefined : "numeric" });
+  }
+  function listTime(t) {
+    var l = dayLabel(t);
+    if (l === "Hoje") return hhmm(t);
+    if (l === "Ontem") return "Ontem";
+    return new Date(t).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function banner(text, err) {
+    var b = $("banner");
+    if (!text) { b.classList.add("hide"); return; }
+    b.textContent = text; b.className = "banner" + (err ? " err" : "");
+  }
+
+  /* ---------- lista de conversas ---------- */
+  async function renderList() {
+    var my = ++seq;
+    var ids = new Set();
+    contacts.forEach(function (_, id) { ids.add(id); });
+    chats.forEach(function (c) { var p = peerOf(c); if (p) ids.add(p); });
+    var arr = Array.from(ids);
+    if (arr.length && user) { var got = await user.profiles(arr); Object.keys(got).forEach(function (k) { P[k] = got[k]; }); }
+    if (my !== seq) return;
+    var q = $("filter").value.trim().toLowerCase();
+    var rows = arr.map(function (id) {
+      var c = chats.get(chatId(id));
+      return { id: id, chat: c, at: c && c.lastAt || 0 };
+    }).filter(function (r) { return !q || nameOf(r.id).toLowerCase().indexOf(q) >= 0; });
+    rows.sort(function (a, b) { return b.at - a.at || nameOf(a.id).localeCompare(nameOf(b.id), "pt-BR"); });
+
+    var list = $("list"); list.textContent = "";
+    if (!rows.length) {
+      var e = el("div", "empty");
+      e.appendChild(el("strong", "", q ? "Nada encontrado" : "Nenhuma conversa ainda"));
+      e.appendChild(document.createTextNode(q ? "Tente outro nome." : "Toque em + para adicionar alguém e começar a conversar."));
+      list.appendChild(e); return;
+    }
+    rows.forEach(function (r) {
+      var cid = chatId(r.id), c = r.chat;
+      var unread = c && c.lastAt > readAt(cid) && c.lastFrom !== me && !(active === r.id);
+      var b = el("button", "item" + (active === r.id ? " on" : "") + (unread ? " unread" : ""));
+      b.type = "button";
+      var img = el("img", "avatar"); img.alt = ""; img.src = avatarOf(r.id); b.appendChild(img);
+      var mid = el("div", "mid");
+      var top = el("div", "top");
+      top.appendChild(el("div", "name", nameOf(r.id)));
+      if (c && c.lastAt) top.appendChild(el("div", "when", listTime(c.lastAt)));
+      mid.appendChild(top);
+      mid.appendChild(el("div", "sub", c && c.last ? (c.lastFrom === me ? "Você: " : "") + c.last : "Toque para conversar"));
+      b.appendChild(mid);
+      if (unread) b.appendChild(el("span", "dot"));
+      b.addEventListener("click", function () { openChat(r.id); });
+      list.appendChild(b);
+    });
+  }
+
+  /* ---------- conversa aberta ---------- */
+  function openChat(peer) {
+    active = peer; armedRemove = false; firstLoad = true; msgs = [];
+    if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+    var cid = chatId(peer); markRead(cid);
+    $("welcome").classList.add("hide"); $("welcome").style.display = "none";
+    var chat = $("chat"); chat.classList.remove("hide"); chat.style.display = "flex";
+    $("shell").classList.add("in-chat");
+    paintHeader();
+    $("msgs").textContent = "";
+    unsubMsgs = db.collection("chats/" + cid + "/messages").orderBy("t", "desc").limit(300).onSnapshot(function (snap) {
+      msgs = snap.docs.map(function (d) { var x = d.data() || {}; return { id: d.id, from: x.from, text: String(x.text == null ? "" : x.text), t: x.t || 0 }; }).reverse();
+      markRead(cid);
+      renderMsgs();
+    }, function () { banner("Não foi possível carregar as mensagens desta conversa.", true); });
+    var ta = $("text"); ta.disabled = !canWrite; $("sendBtn").disabled = !canWrite;
+    ta.placeholder = canWrite ? "Escreva uma mensagem" : "Seu acesso é somente leitura";
+    if (canWrite && matchMedia("(min-width: 721px)").matches) ta.focus();
+    renderList();
+  }
+  function closeChat() {
+    active = null;
+    if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+    $("shell").classList.remove("in-chat");
+    $("chat").classList.add("hide"); $("chat").style.display = "none";
+    $("welcome").classList.remove("hide"); $("welcome").style.display = "";
+    renderList();
+  }
+  async function paintHeader() {
+    if (!active) return;
+    var id = active;
+    var got = await user.profiles([id]); P[id] = got[id];
+    if (active !== id) return;
+    $("peerName").textContent = nameOf(id);
+    $("peerAvatar").src = avatarOf(id);
+    $("peerSub").textContent = contacts.has(id) ? "Contato" : "Ainda não está nos seus contatos";
+    $("addBtn").classList.toggle("hide", contacts.has(id));
+    $("rmBtn").classList.toggle("hide", !contacts.has(id));
+    $("rmBtn").textContent = armedRemove ? "Confirmar remoção" : "Remover";
+  }
+  function renderMsgs() {
+    var box = $("msgs");
+    var stick = firstLoad || box.scrollHeight - box.scrollTop - box.clientHeight < 140;
+    box.textContent = "";
+    if (!msgs.length) {
+      box.appendChild(el("div", "sep", "Nenhuma mensagem ainda. Diga oi."));
+    }
+    var last = "";
+    msgs.forEach(function (m) {
+      var d = dayLabel(m.t);
+      if (d !== last) { last = d; box.appendChild(el("div", "sep", d)); }
+      var own = m.from === me;
+      var row = el("div", "row " + (own ? "out" : "in"));
+      var b = el("div", "bubble");
+      b.appendChild(el("p", "", m.text));
+      var meta = el("div", "meta");
+      if (own) {
+        var del = el("button", "del", "apagar"); del.type = "button";
+        del.addEventListener("click", function () {
+          if (!active) return;
+          db.doc("chats/" + chatId(active) + "/messages/" + m.id).delete().catch(function () { banner("Não foi possível apagar a mensagem.", true); });
+        });
+        meta.appendChild(del);
+      }
+      meta.appendChild(el("span", "", hhmm(m.t)));
+      b.appendChild(meta); row.appendChild(b); box.appendChild(row);
+    });
+    if (stick) box.scrollTop = box.scrollHeight;
+    firstLoad = false;
+  }
+
+  /* ---------- envio ---------- */
+  function send() {
+    var ta = $("text"), text = ta.value.trim();
+    if (!text || !active || !canWrite) return;
+    var peer = active, cid = chatId(peer), t = Date.now();
+    ta.value = ""; autosize();
+    queue = queue.then(async function () {
+      try {
+        await db.collection("chats/" + cid + "/messages").add({ from: me, text: text, t: t });
+        await db.doc("chats/" + cid).set({ members: [me, peer], last: text.slice(0, 200), lastFrom: me, lastAt: t });
+        banner("");
+      } catch (e) {
+        banner("Mensagem não enviada. Verifique sua conexão e tente de novo.", true);
+        if (active === peer && !ta.value) ta.value = text;
+      }
+    });
+  }
+  function autosize() { var ta = $("text"); ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 140) + "px"; }
+
+  /* ---------- contatos ---------- */
+  async function addContact(id) {
+    try { await db.collection("data/users/" + me).doc(id).set({ kind: "contact", addedAt: Date.now() }); }
+    catch (e) { banner("Não foi possível adicionar o contato.", true); return false; }
+    return true;
+  }
+  var searchTimer = 0;
+  async function runSearch() {
+    var q = $("people").value.trim(), box = $("results");
+    var hits = user ? await user.search(q) : [];
+    hits = hits.filter(function (h) { return h.id !== me; });
+    box.textContent = "";
+    if (!hits.length) {
+      var e = el("div", "empty");
+      e.appendChild(el("strong", "", q ? "Ninguém com esse nome" : "Digite um nome"));
+      e.appendChild(document.createTextNode("Só aparecem pessoas que já têm acesso a esta página. Compartilhe o link com quem você quer chamar e peça para abrir uma vez."));
+      box.appendChild(e); return;
+    }
+    hits.forEach(function (h) {
+      P[h.id] = h;
+      var b = el("button", "item"); b.type = "button";
+      var img = el("img", "avatar"); img.alt = ""; img.src = h.avatarUrl; b.appendChild(img);
+      var mid = el("div", "mid");
+      mid.appendChild(el("div", "name", h.name || "Pessoa"));
+      mid.appendChild(el("div", "sub", contacts.has(h.id) ? "Já está nos seus contatos" : "Toque para adicionar e conversar"));
+      b.appendChild(mid);
+      b.addEventListener("click", async function () {
+        if (!contacts.has(h.id)) { contacts.set(h.id, true); if (!(await addContact(h.id))) { contacts.delete(h.id); return; } }
+        closeSheet(); openChat(h.id);
+      });
+      box.appendChild(b);
+    });
+  }
+  function openSheet() { $("sheet").classList.remove("hide"); $("people").value = ""; runSearch(); $("people").focus(); }
+  function closeSheet() { $("sheet").classList.add("hide"); }
+
+  /* ---------- eventos ---------- */
+  $("newBtn").addEventListener("click", openSheet);
+  $("sheetClose").addEventListener("click", closeSheet);
+  $("people").addEventListener("input", function () { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 150); });
+  $("filter").addEventListener("input", renderList);
+  $("backBtn").addEventListener("click", closeChat);
+  $("form").addEventListener("submit", function (e) { e.preventDefault(); send(); });
+  $("text").addEventListener("input", autosize);
+  $("text").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+  });
+  $("addBtn").addEventListener("click", async function () {
+    if (!active) return; var id = active;
+    contacts.set(id, true);
+    if (!(await addContact(id))) contacts.delete(id);
+    paintHeader();
+  });
+  $("rmBtn").addEventListener("click", async function () {
+    if (!active) return;
+    if (!armedRemove) { armedRemove = true; paintHeader(); return; }
+    var id = active; armedRemove = false;
+    try { await db.collection("data/users/" + me).doc(id).delete(); contacts.delete(id); }
+    catch (e) { banner("Não foi possível remover o contato.", true); }
+    paintHeader(); renderList();
+  });
+
+  /* ---------- início ---------- */
+  async function start() {
+    var c = window.claude;
+    if (!c || !c.use) { gate("Abra esta página no Claude para usar o chat."); return; }
+    user = await c.use("user"); db = await c.use("db");
+    if (!user || !db) { gate("Entre na sua conta para conversar. Esta página precisa saber quem é você."); return; }
+    var mine = await user.me();
+    me = mine.id;
+    if (!me) { gate("Não foi possível identificar você nesta página."); return; }
+    $("meName").textContent = mine.name || "Você";
+    $("meAvatar").src = mine.avatarUrl;
+    var cw = await user.can("data.write"); canWrite = cw !== false;
+    if (!canWrite) banner("Seu acesso a esta página é somente leitura. Peça permissão de colaborador para enviar mensagens.");
+
+    var timer = setTimeout(function () { banner("Ainda não conseguimos conectar. As conversas podem estar desatualizadas.", true); }, 10000);
+    var done = false;
+    function ok(snap) { if (!done && !snap.metadata.fromCache) { done = true; clearTimeout(timer); if (canWrite) banner(""); } }
+
+    db.collection("chats").where("members", "array-contains", me).onSnapshot(function (snap) {
+      chats = new Map(); snap.docs.forEach(function (d) { chats.set(d.id, d.data() || {}); });
+      ok(snap); renderList();
+    }, function () { clearTimeout(timer); banner("Não foi possível carregar suas conversas.", true); });
+
+    db.collection("data/users/" + me).onSnapshot(function (snap) {
+      contacts = new Map(); snap.docs.forEach(function (d) { contacts.set(d.id, true); });
+      renderList(); paintHeader();
+    }, function () { banner("Não foi possível carregar seus contatos.", true); });
+  }
+  function gate(msg) {
+    $("list").textContent = "";
+    var e = el("div", "empty"); e.appendChild(el("strong", "", "Chat indisponível")); e.appendChild(document.createTextNode(msg));
+    $("list").appendChild(e);
+    $("newBtn").disabled = true;
+  }
+  start();
+})();
+</script>
